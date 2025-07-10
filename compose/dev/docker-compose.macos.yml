@@ -1,0 +1,56 @@
+services:
+  prometheus:
+    network_mode: "bridge"
+    ports:
+      - ${DEV_PROMETHEUS_PORT}:${PROMETHEUS_INTERNAL_PORT}
+
+  influxdb:
+    network_mode: "bridge"
+    ports:
+      - ${DEV_INFLUXDB_PORT}:${INFLUXDB_INTERNAL_PORT}
+
+  grafana:
+    network_mode: "bridge"
+    ports:
+      - ${DEV_GRAFANA_PORT}:${GRAFANA_INTERNAL_PORT}
+
+  loki:
+    network_mode: "bridge"
+    ports:
+      - ${DEV_LOKI_PORT}:${LOKI_INTERNAL_PORT}
+
+  message_broker:
+    ports:
+      - ${DEV_BROKER_PORT}:${BROKER_INTERNAL_PORT}
+
+  minio:
+    ports:
+      - ${DEV_MINIO_PORT}:${MINIO_INTERNAL_PORT}
+
+  ray:
+    environment:
+      LOKI_URL: http://loki:${LOKI_INTERNAL_PORT}/loki/api/v1/push
+      INFLUXDB_ADDRESS: http://influxdb:${INFLUXDB_INTERNAL_PORT}
+      OBJECT_STORE_URL: minio:${MINIO_INTERNAL_PORT}
+      API_URL: http://api:${API_INTERNAL_PORT}
+      RAY_CLIENT_CONNECT_TIMEOUT: 60
+    volumes:
+      - ~/.cache/huggingface/hub/:/root/.cache/huggingface/hub
+      - ./service_config.macos.yml:/src/ray/config/service_config.yml
+      - ./ray_config.yml:/src/ray/config/ray_config.yml
+      - ../../src/services/ray/start.sh:/start.sh
+      - ray-data:/tmp/ray/
+
+  api:
+    restart: always
+    depends_on:
+      - ray
+      - message_broker
+      - minio
+    environment:
+      LOKI_URL: http://loki:${LOKI_INTERNAL_PORT}/loki/api/v1/push
+      INFLUXDB_ADDRESS: http://influxdb:${INFLUXDB_INTERNAL_PORT}
+      BROKER_URL: ${BROKER_PROTOCOL}@message_broker:${BROKER_INTERNAL_PORT}/
+      OBJECT_STORE_URL: minio:${MINIO_INTERNAL_PORT}
+      RAY_ADDRESS: ray://ray:${RAY_CLIENT_INTERNAL_PORT}
+      RAY_CLIENT_CONNECT_TIMEOUT: 60

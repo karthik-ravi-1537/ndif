@@ -1,7 +1,22 @@
 -include .config
 
-IP_ADDR := $(shell hostname -I | awk '{print $$1}')
-N_DEVICES := $(shell command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L | wc -l || echo 0)
+# Detect OS type and set IP_ADDR accordingly
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+    # For macOS, use localhost as IP_ADDR
+    IP_ADDR := 127.0.0.1
+    # Force N_DEVICES to 0 for macOS as it doesn't support nvidia-smi
+    N_DEVICES := 0
+    # Set macOS flag for Docker Compose
+    IS_MACOS := true
+else
+    # For Linux, use hostname -I
+    IP_ADDR := $(shell hostname -I | awk '{print $$1}')
+    # Get the number of NVIDIA devices
+    N_DEVICES := $(shell command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L | wc -l || echo 0)
+    # Set macOS flag for Docker Compose
+    IS_MACOS := false
+endif
 
 # Treat "up", "down" and "ta" as targets (not files)
 .PHONY: up down ta
@@ -67,9 +82,15 @@ build:
 up:
 	$(call set_env)
 	$(call check_env,$(ENV))
-	@if [ "$(ENV)" = "dev" ] && [ "$(DEV_NNS)" = "True" ]; then \
+	@if [ "$(ENV)" = "dev" ] && [ "$(DEV_NNS)" = "True" ] && [ "$(IS_MACOS)" = "true" ]; then \
+		export HOST_IP=$(IP_ADDR) N_DEVICES=$(N_DEVICES) NNS_PATH=$(NNS_PATH) && \
+		docker compose -f compose/dev/docker-compose.yml -f compose/dev/docker-compose.nnsight.yml -f compose/dev/docker-compose.macos.yml up --detach; \
+	elif [ "$(ENV)" = "dev" ] && [ "$(DEV_NNS)" = "True" ]; then \
 		export HOST_IP=$(IP_ADDR) N_DEVICES=$(N_DEVICES) NNS_PATH=$(NNS_PATH) && \
 		docker compose -f compose/dev/docker-compose.yml -f compose/dev/docker-compose.nnsight.yml up --detach; \
+	elif [ "$(ENV)" = "dev" ] && [ "$(IS_MACOS)" = "true" ]; then \
+		export HOST_IP=$(IP_ADDR) N_DEVICES=$(N_DEVICES) NNS_PATH=$(NNS_PATH) && \
+		docker compose -f compose/dev/docker-compose.yml -f compose/dev/docker-compose.macos.yml up --detach; \
 	else \
 		export HOST_IP=$(IP_ADDR) N_DEVICES=$(N_DEVICES) NNS_PATH=$(NNS_PATH) && \
 		docker compose -f compose/$(ENV)/docker-compose.yml up --detach; \
@@ -78,7 +99,11 @@ up:
 down:
 	$(call set_env)
 	$(call check_env,$(ENV))
-	export HOST_IP=${IP_ADDR} N_DEVICES=${N_DEVICES} && docker compose -f compose/$(ENV)/docker-compose.yml down
+	@if [ "$(ENV)" = "dev" ] && [ "$(IS_MACOS)" = "true" ]; then \
+		export HOST_IP=${IP_ADDR} N_DEVICES=${N_DEVICES} && docker compose -f compose/$(ENV)/docker-compose.yml -f compose/dev/docker-compose.macos.yml down; \
+	else \
+		export HOST_IP=${IP_ADDR} N_DEVICES=${N_DEVICES} && docker compose -f compose/$(ENV)/docker-compose.yml down; \
+	fi
 
 ta:
 	$(call set_env)
