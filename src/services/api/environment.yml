@@ -1,5 +1,6 @@
 channels:
   - conda-forge
+  - pytorch
 dependencies:
   - python=3.10
   - pip
@@ -33,7 +34,10 @@ dependencies:
     # Tasks
     - ray[serve]==2.45.0
     - requests
-    - torch
     - python-slugify
     - influxdb-client
     - nnsight
+  # PyTorch with Apple Silicon MPS support
+  - pytorch>=2.0.0
+  - torchvision
+  - torchaudio

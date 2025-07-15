@@ -1,21 +1,17 @@
 services:
   prometheus:
-    network_mode: "bridge"
     ports:
       - ${DEV_PROMETHEUS_PORT}:${PROMETHEUS_INTERNAL_PORT}
 
   influxdb:
-    network_mode: "bridge"
     ports:
       - ${DEV_INFLUXDB_PORT}:${INFLUXDB_INTERNAL_PORT}
 
   grafana:
-    network_mode: "bridge"
     ports:
       - ${DEV_GRAFANA_PORT}:${GRAFANA_INTERNAL_PORT}
 
   loki:
-    network_mode: "bridge"
     ports:
       - ${DEV_LOKI_PORT}:${LOKI_INTERNAL_PORT}
 
@@ -28,12 +24,24 @@ services:
       - ${DEV_MINIO_PORT}:${MINIO_INTERNAL_PORT}
 
   ray:
+    platform: linux/arm64
     environment:
       LOKI_URL: http://loki:${LOKI_INTERNAL_PORT}/loki/api/v1/push
       INFLUXDB_ADDRESS: http://influxdb:${INFLUXDB_INTERNAL_PORT}
       OBJECT_STORE_URL: minio:${MINIO_INTERNAL_PORT}
       API_URL: http://api:${API_INTERNAL_PORT}
+      RAY_ADDRESS: ray://ray:${RAY_CLIENT_INTERNAL_PORT}
       RAY_CLIENT_CONNECT_TIMEOUT: 60
+      PYTORCH_ENABLE_MPS_FALLBACK: 1
+      PYTORCH_MPS_HIGH_WATERMARK_RATIO: 0.0
+      RAY_memory_monitor_refresh_ms: 100
+      RAY_object_store_memory: 2000000000
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 2G
     volumes:
       - ~/.cache/huggingface/hub/:/root/.cache/huggingface/hub
       - ./service_config.macos.yml:/src/ray/config/service_config.yml
@@ -42,15 +50,35 @@ services:
       - ray-data:/tmp/ray/
 
   api:
+    platform: linux/arm64
     restart: always
-    depends_on:
-      - ray
-      - message_broker
-      - minio
     environment:
+      PYTORCH_ENABLE_MPS_FALLBACK: 1
+      PYTORCH_MPS_HIGH_WATERMARK_RATIO: 0.0
+      OBJECT_STORE_URL: minio:${MINIO_INTERNAL_PORT}
+      BROKER_URL: ${BROKER_PROTOCOL}message_broker:${BROKER_INTERNAL_PORT}/
+      RAY_ADDRESS: ray://ray:${RAY_CLIENT_INTERNAL_PORT}
       LOKI_URL: http://loki:${LOKI_INTERNAL_PORT}/loki/api/v1/push
       INFLUXDB_ADDRESS: http://influxdb:${INFLUXDB_INTERNAL_PORT}
-      BROKER_URL: ${BROKER_PROTOCOL}@message_broker:${BROKER_INTERNAL_PORT}/
-      OBJECT_STORE_URL: minio:${MINIO_INTERNAL_PORT}
-      RAY_ADDRESS: ray://ray:${RAY_CLIENT_INTERNAL_PORT}
-      RAY_CLIENT_CONNECT_TIMEOUT: 60
+      INFLUXDB_ADMIN_TOKEN: ${SECRET_INFLUXDB_ADMIN_TOKEN}
+      INFLUXDB_ORG: ${INFLUXDB_ORG}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+      API_INTERNAL_PORT: ${API_INTERNAL_PORT}
+      WORKERS: 1
+      RAY_SERVE_QUEUE_LENGTH_RESPONSE_DEADLINE_S: 10
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G
+    depends_on:
+      - message_broker
+      - minio
+      - ray
+      - loki
+      - influxdb
+
+networks:
+  default:
+    driver: bridge

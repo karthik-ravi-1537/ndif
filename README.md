@@ -8,6 +8,19 @@ This guide explains how to set up a development environment, install dependencie
 - Docker
 - Docker Compose
 
+## Apple Silicon (M1/M2) Quick Setup 🍎
+
+For Apple Silicon users, we provide an optimized setup script:
+
+```sh
+./scripts/setup-apple-silicon.sh
+```
+
+This script automatically:
+- Configures Apple Silicon optimized Docker builds
+- Sets up PyTorch with Metal Performance Shaders (MPS) support
+- Optimizes memory allocation for unified memory architecture
+- Configures Ray for Apple Silicon performance cores
 
 ## Setup
 

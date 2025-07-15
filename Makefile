@@ -40,15 +40,30 @@ set_env = $(eval ENV := $(if $(filter $(words $(MAKECMDGOALS)),1),$(DEFAULT_ENV)
           $(if $(filter $(words $(MAKECMDGOALS)),1),$(info Using default environment: $(DEFAULT_ENV)),)
 
 build_base:
-	docker build --no-cache -t ndif_base:$(TAG) -f docker/dockerfile.base .
+	@echo "Building base image for platform: $(shell uname -m)"
+	@if [ "$(shell uname -m)" = "arm64" ] || [ "$(shell uname -m)" = "aarch64" ]; then \
+		docker build --platform=linux/arm64 --no-cache -t ndif_base:$(TAG) -f docker/dockerfile.base .; \
+	else \
+		docker build --no-cache -t ndif_base:$(TAG) -f docker/dockerfile.base .; \
+	fi
 
 build_conda:
-	docker build --no-cache --build-arg NAME=$(NAME) --build-arg TAG=$(TAG) -t $(NAME)_conda:$(TAG) -f docker/dockerfile.conda .
+	@echo "Building conda image for $(NAME) on platform: $(shell uname -m)"
+	@if [ "$(shell uname -m)" = "arm64" ] || [ "$(shell uname -m)" = "aarch64" ]; then \
+		docker build --platform=linux/arm64 --no-cache --build-arg NAME=$(NAME) --build-arg TAG=$(TAG) -t $(NAME)_conda:$(TAG) -f docker/dockerfile.conda .; \
+	else \
+		docker build --no-cache --build-arg NAME=$(NAME) --build-arg TAG=$(TAG) -t $(NAME)_conda:$(TAG) -f docker/dockerfile.conda .; \
+	fi
 
 build_service:
+	@echo "Building service image for $(NAME) on platform: $(shell uname -m)"
 	cp docker/helpers/check_and_update_env.sh ./
 	tar -hczvf src.tar.gz --directory=src/services/$(NAME) src
-	docker build --no-cache --build-arg NAME=$(NAME) --build-arg TAG=$(TAG) -t $(NAME):$(TAG) -f docker/dockerfile.service  . 
+	@if [ "$(shell uname -m)" = "arm64" ] || [ "$(shell uname -m)" = "aarch64" ]; then \
+		docker build --platform=linux/arm64 --no-cache --build-arg NAME=$(NAME) --build-arg TAG=$(TAG) -t $(NAME):$(TAG) -f docker/dockerfile.service .; \
+	else \
+		docker build --no-cache --build-arg NAME=$(NAME) --build-arg TAG=$(TAG) -t $(NAME):$(TAG) -f docker/dockerfile.service .; \
+	fi
 	rm src.tar.gz
 	rm check_and_update_env.sh
 

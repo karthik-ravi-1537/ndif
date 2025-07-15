@@ -1,5 +1,6 @@
 channels:
   - conda-forge
+  - pytorch
 dependencies:
   - python=3.10
   - pip
@@ -16,3 +17,7 @@ dependencies:
     # Database
     - boto3
     - influxdb-client
+  # PyTorch with Apple Silicon MPS support
+  - pytorch>=2.0.0
+  - torchvision
+  - torchaudio

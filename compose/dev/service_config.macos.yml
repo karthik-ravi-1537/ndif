@@ -4,5 +4,14 @@ request_num_replicas: 1
 models:
   - model_key: 'nnsight.modeling.language.LanguageModel:{"repo_id": "openai-community/gpt2"}'
     ray_actor_options:
-      num_cpus: 1  # Use CPU resources instead of GPU for macOS
+      num_cpus: 2  # Optimized for Apple Silicon performance cores
+      memory: 4000000000  # 4GB memory allocation optimized for unified memory
+      object_store_memory: 1000000000  # 1GB object store optimized for Apple Silicon
+      # Apple Silicon specific optimizations
+      runtime_env:
+        env_vars:
+          PYTORCH_ENABLE_MPS_FALLBACK: "1"
+          PYTORCH_MPS_HIGH_WATERMARK_RATIO: "0.0"
+          OMP_NUM_THREADS: "4"  # Optimized for Apple Silicon cores
+          MKL_NUM_THREADS: "4"
     num_replicas: 1

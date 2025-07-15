@@ -1,5 +1,6 @@
 channels:
   - conda-forge
+  - pytorch
 dependencies:
   - python=3.10
   - pip
@@ -11,3 +12,7 @@ dependencies:
     # Telemetry
     - prometheus_client
     - python-logging-loki
+    # PyTorch with Apple Silicon MPS support (will fallback to CPU on other platforms)
+    - torch>=2.0.0
+    - torchvision
+    - torchaudio
